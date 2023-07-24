@@ -26,9 +26,13 @@ def to_yoda_2d(input: dict[str, Hist]) -> str:
 
 
 def _to_single_yoda_1d(path: str, h: Hist) -> str:
-    res = "BEGIN YODA_HISTO1D_V2 " + path + "\n"
-    res += "Path: " + path + "\n"
-    res += "Title: " + h.name + "\n"
+    # Unpack single axis & values from histogram
+    (axis,) = h.axes
+    data = h.view()
+
+    res = f"BEGIN YODA_HISTO1D_V2 {path}\n"
+    res += f"Path: {path}\n"
+    res += f"Title: {h.name}\n"
     res += "Type: Histo1D\n"
     res += "some: stuff\n"
 
@@ -36,23 +40,22 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
     res += "---\n"
 
     # Calculate area and mean
-    area = np.sum(h.view())
-    mean = np.sum(i * value for i, value in enumerate(h.view())) / area
+    area = np.sum(axis.widths)
+    mean = np.sum(axis.centers * data) / np.sum(data)
 
     # Add area and mean to YODA string
     res += f"# Mean: {mean:.6e}\n"
     res += f"# Area: {area:.6e}\n"
 
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
-    res += f"Total\tTotal\t{area:.6e}\t{area:.6e}\t{mean:.6e}\t{mean:.6e}\t{len(h.view())}\n"
+    res += f"Total\tTotal\t{area:.6e}\t{area:.6e}\t{mean:.6e}\t{mean:.6e}\t{len(data)}\n"
     res += "Underflow\tUnderflow\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\n"
     res += "Overflow\tOverflow\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\n"
 
     res += "# xlow\txhigh\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
 
     # Add histogram bins
-    bin_edges = [i+1 for i in range(len(h.view()) + 1)]
-    for xlow, xhigh, value in zip(bin_edges[:-1], bin_edges[1:], h.view()):
+    for xlow, xhigh, value in zip(axis.edges[:-1], axis.edges[1:], data):
         res += f"{xlow:.6e}\t{xhigh:.6e}\t{value:.6e}\t{value:.6e}\t{(xlow + xhigh) * 0.5 * value:.6e}\t{(xlow + xhigh) * 0.5 * value ** 2:.6e}\t{value:.6e}\n"
 
     res += "END YODA_HISTO1D_V2\n"
@@ -109,7 +112,7 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
 
 
 # Reading the yoda format
-def read_yoda(input) -> Dict[str, tuple[str, str]]:
+def read_yoda(input) -> dict[str, tuple[str, str]]:
     yoda_dict = {}
     lines = input.split("\n")
     num_lines = len(lines)
@@ -139,7 +142,7 @@ def read_yoda(input) -> Dict[str, tuple[str, str]]:
 # --------------------------------------------------------------------------------
 # Sample input data for 1D
 h1d = {
-    "/some_h1d": Hist(hist.axes.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
+    "/some_h1d": Hist(hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
 }
 
 # Convert to YODA string for 1D histogram
@@ -153,8 +156,8 @@ print(yoda_data)
 # Sample input data for 2D
 h2d = {
     "/some_h2d": Hist(
-        hist.axes.Variable([1.0, 2.0, 3.0, 4.0, 5.0]),
-        hist.axes.Variable([6.0, 7.0, 8.0, 9.0, 10.0]),
+        hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0]),
+        hist.axis.Variable([6.0, 7.0, 8.0, 9.0, 10.0]),
         name="Histogram 2D")
 }
 
