@@ -25,10 +25,17 @@ def to_yoda_2d(input: dict[str, Hist]) -> str:
     return res
 
 
+def print_line(lower: str | float, upper: str | float, sumw: float, sumw2: float, sumwx:float , sumwx2: float, num_entries: float) -> str:
+    if isinstance(lower, float):
+        lower = format(lower, ".6e")
+    if isinstance(upper, float):
+        upper = format(upper, ".6e")
+    return f"{lower:8}\t{upper:8}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{num_entries:.6e}\n"
+
 def _to_single_yoda_1d(path: str, h: Hist) -> str:
     # Unpack single axis & values from histogram
     (axis,) = h.axes
-    data = h.view()
+    data = h.values()
 
     res = f"BEGIN YODA_HISTO1D_V2 {path}\n"
     res += f"Path: {path}\n"
@@ -40,7 +47,7 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
     res += "---\n"
 
     # Calculate area and mean
-    area = np.sum(axis.widths)
+    area = h.sum(flow=True)
     mean = np.sum(axis.centers * data) / np.sum(data)
 
     # Add area and mean to YODA string
@@ -48,15 +55,15 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
     res += f"# Area: {area:.6e}\n"
 
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
-    res += f"Total\tTotal\t{area:.6e}\t{area:.6e}\t{mean:.6e}\t{mean:.6e}\t{len(data)}\n"
-    res += "Underflow\tUnderflow\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\n"
-    res += "Overflow\tOverflow\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\t0.000000e+00\n"
+    res += print_line("Total", "Total", area, area, mean, mean, area)
+    res += print_line("Underflow", "Underflow", h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow])
+    res += print_line("Overflow", "Overflow", h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow])
 
     res += "# xlow\txhigh\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
 
     # Add histogram bins
     for xlow, xhigh, value in zip(axis.edges[:-1], axis.edges[1:], data):
-        res += f"{xlow:.6e}\t{xhigh:.6e}\t{value:.6e}\t{value:.6e}\t{(xlow + xhigh) * 0.5 * value:.6e}\t{(xlow + xhigh) * 0.5 * value ** 2:.6e}\t{value:.6e}\n"
+        res += print_line(xlow, xhigh, value, value, (xlow + xhigh) * 0.5 * value, (xlow + xhigh) * 0.5 * value ** 2, value)
 
     res += "END YODA_HISTO1D_V2\n"
     return res
@@ -173,3 +180,14 @@ with open("file1d.yoda", "w") as file:
     file.write(yoda_file1D)
 with open("file2d.yoda", "w") as file:
     file.write(yoda_file2D)
+
+h1d_flat = {
+    "/h1d_flat": Hist(hist.axis.Regular(9,1,10), name="Histogram 1D")
+}
+
+h1d_flat["/h1d_flat"].fill(np.linspace(1,10,100))
+
+yoda_file1D_flat = to_yoda_1d(h1d_flat)
+
+with open("h1d_flat_Hist.yoda", "w") as file:
+    file.write(yoda_file1D_flat)
