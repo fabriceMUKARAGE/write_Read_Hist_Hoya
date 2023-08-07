@@ -25,7 +25,7 @@ def to_yoda_2d(input: dict[str, Hist]) -> str:
     return res
 
 
-def print_line(lower: str | float, upper: str | float, sumw: float, sumw2: float, sumwx:float , sumwx2: float, num_entries: float) -> str:
+def print_line_1d(lower: str | float, upper: str | float, sumw: float, sumw2: float, sumwx:float , sumwx2: float, num_entries: float) -> str:
     if isinstance(lower, float):
         lower = format(lower, ".6e")
     if isinstance(upper, float):
@@ -55,15 +55,15 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
     res += f"# Area: {area:.6e}\n"
 
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
-    res += print_line("Total", "Total", area, area, mean, mean, area)
-    res += print_line("Underflow", "Underflow", h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow])
-    res += print_line("Overflow", "Overflow", h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow])
+    res += print_line_1d("Total", "Total", area, area, mean, mean, area)
+    res += print_line_1d("Underflow", "Underflow", h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow])
+    res += print_line_1d("Overflow", "Overflow", h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow])
 
     res += "# xlow\txhigh\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
 
     # Add histogram bins
     for xlow, xhigh, value in zip(axis.edges[:-1], axis.edges[1:], data):
-        res += print_line(xlow, xhigh, value, value, (xlow + xhigh) * 0.5 * value, (xlow + xhigh) * 0.5 * value ** 2, value)
+        res += print_line_1d(xlow, xhigh, value, value, (xlow + xhigh) * 0.5 * value, (xlow + xhigh) * 0.5 * value ** 2, value)
 
     res += "END YODA_HISTO1D_V2\n"
     return res
@@ -79,43 +79,42 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
     # Add histogram data
     res += "---\n"
     
+    (x_axis, y_axis) = h.axes
+    data = h.values()
+
     # Calculate mean and volume
-    mean_x = sum(x * value for x, row in enumerate(h.view()) for value in row) / sum(value for row in h.view() for value in row)
-    mean_y = sum(y * value for row in h.view() for y, value in enumerate(row)) / sum(sum(row) for row in h.view())
-    volume = sum(sum(row) for row in h.view())
+    mean_x = np.sum(x_axis.centers * data) / np.sum(data)
+    mean_y = np.sum(y_axis.centers * data) / np.sum(data)
+    volume = np.sum(data) * x_axis.widths[0] * y_axis.widths[0]
+    
 
     # Add mean, volume, and ID to YODA string
     res += f"# Mean: ({mean_x:.6e}, {mean_y:.6e})\n"
     res += f"# Volume: {volume:.6e}\n"
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
-    res += f"Total\tTotal\t{volume:.6e}\t{volume:.6e}\t{mean_x * volume:.6e}\t{mean_x * volume:.6e}\t{mean_y * volume:.6e}\t{mean_y * volume:.6e}\t0.0\t{sum(value != 0 for row in h.view() for value in row)}\n"
+    res += f"Total\tTotal\t{volume:.6e}\t{volume:.6e}\t{mean_x * volume:.6e}\t{mean_x * volume:.6e}\t{mean_y * volume:.6e}\t{mean_y * volume:.6e}\t0.0\t{sum(value != 0 for value in data.flat)}\n"
     res += "# xlow\txhigh\tylow\tyhigh\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
 
     # Add histogram bins
-    num_rows = len(h.view())
-    num_cols = len(h.axes)
-    x_bin_edges = [i for i in range(num_rows + 1)]
-    y_bin_edges = [j for j in range(num_cols + 1)]
+    x_bin_edges = h.axes[0].edges
+    y_bin_edges = h.axes[1].edges
 
-    for i in range(num_rows):
-        for j in range(num_cols):
-            xlow = x_bin_edges[i]
-            xhigh = x_bin_edges[i + 1]
-            ylow = y_bin_edges[j]
-            yhigh = y_bin_edges[j + 1]
-            sumw = h.view()[i, j]
+    for i in range(len(x_bin_edges) - 1):
+        for j in range(len(y_bin_edges) - 1):
+            xlow, xhigh = x_bin_edges[i], x_bin_edges[i + 1]
+            ylow, yhigh = y_bin_edges[j], y_bin_edges[j + 1]
+            sumw = data[i, j]
             sumw2 = sumw * sumw
             sumwx = sumw * (xlow + xhigh) * 0.5
             sumwx2 = sumw * (xlow + xhigh) * 0.5 * (xlow + xhigh) * 0.5
             sumwy = sumw * (ylow + yhigh) * 0.5
             sumwy2 = sumw * (ylow + yhigh) * 0.5 * (ylow + yhigh) * 0.5
             sumwxy = sumw * (xlow + xhigh) * 0.5 * (ylow + yhigh) * 0.5
-            numEntries = sum(h.view()[i,j] != 0 for j in range(num_cols))
+            numEntries = int(data[i, j] != 0)
             res += f"{xlow:.6e}\t{xhigh:.6e}\t{ylow:.6e}\t{yhigh:.6e}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{sumwy:.6e}\t{sumwy2:.6e}\t{sumwxy:.6e}\t{numEntries}\n"
 
     res += "END YODA_HISTO2D_V2\n"
     return res
-
 
 
 # Reading the yoda format
@@ -153,11 +152,26 @@ h1d = {
 }
 
 # Convert to YODA string for 1D histogram
+h1d["/some_h1d"].fill(np.linspace(1,10,100))
 yoda_file1D = to_yoda_1d(h1d)
 
 # Read YODA
 yoda_data = read_yoda(yoda_file1D)
 print(yoda_data)
+
+'''
+h1d_flat = {
+    "/h1d_flat": Hist(hist.axis.Regular(9,1,10), name="Histogram 1D")
+}
+
+h1d_flat["/h1d_flat"].fill(np.linspace(1,10,100))
+
+yoda_file1D_flat = to_yoda_1d(h1d_flat)
+print(yoda_file1D_flat)
+
+'''
+
+
 
 # --------------------------------------------------------------------------------
 # Sample input data for 2D
@@ -168,6 +182,13 @@ h2d = {
         name="Histogram 2D")
 }
 
+# Generate pairs of data for both x and y axes
+x_data = np.random.uniform(1, 5, 100)  
+y_data = np.random.uniform(6, 10, 100)  
+
+# Fill the 2D histogram with pairs of data
+h2d["/some_h2d"].fill(x_data, y_data)
+
 # Convert to YODA string for 2D histogram
 yoda_file2D = to_yoda_2d(h2d)
 
@@ -176,18 +197,5 @@ yoda_data2D = read_yoda(yoda_file2D)
 print(yoda_data2D)
 
 
-with open("file1d.yoda", "w") as file:
-    file.write(yoda_file1D)
-with open("file2d.yoda", "w") as file:
-    file.write(yoda_file2D)
 
-h1d_flat = {
-    "/h1d_flat": Hist(hist.axis.Regular(9,1,10), name="Histogram 1D")
-}
 
-h1d_flat["/h1d_flat"].fill(np.linspace(1,10,100))
-
-yoda_file1D_flat = to_yoda_1d(h1d_flat)
-
-with open("h1d_flat_Hist.yoda", "w") as file:
-    file.write(yoda_file1D_flat)
