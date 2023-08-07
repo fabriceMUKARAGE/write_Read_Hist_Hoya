@@ -21,7 +21,6 @@ def to_yoda_2d(input: dict[str, Hist]) -> str:
     for path, h in input.items():
         if isinstance(h, Hist):
             res += _to_single_yoda_2d(path, h) + "\n\n"
-
     return res
 
 
@@ -31,6 +30,13 @@ def print_line_1d(lower: str | float, upper: str | float, sumw: float, sumw2: fl
     if isinstance(upper, float):
         upper = format(upper, ".6e")
     return f"{lower:8}\t{upper:8}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{num_entries:.6e}\n"
+
+def print_line_2d(lower: str | float, upper: str | float, sumw: float, sumw2: float, sumwx:float , sumwx2: float, sumwy:float, sumwy2:float,sumwxy:float, num_entries: float) -> str:
+    if isinstance(lower, float):
+        lower = format(lower, ".6e")
+    if isinstance(upper, float):
+        upper = format(upper, ".6e")
+    return f"{lower:8}\t{upper:8}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{sumwy:.6e}\t{sumwy2:.6e}\t{sumwxy:.6e}\t{num_entries:.6e}\n"
 
 def _to_single_yoda_1d(path: str, h: Hist) -> str:
     # Unpack single axis & values from histogram
@@ -92,7 +98,7 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
     res += f"# Mean: ({mean_x:.6e}, {mean_y:.6e})\n"
     res += f"# Volume: {volume:.6e}\n"
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
-    res += f"Total\tTotal\t{volume:.6e}\t{volume:.6e}\t{mean_x * volume:.6e}\t{mean_x * volume:.6e}\t{mean_y * volume:.6e}\t{mean_y * volume:.6e}\t0.0\t{sum(value != 0 for value in data.flat)}\n"
+    res += print_line_2d("Total", "Total", volume, volume, mean_x * volume, mean_x * volume, mean_y * volume, mean_y * volume, volume, volume)
     res += "# xlow\txhigh\tylow\tyhigh\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
 
     # Add histogram bins
