@@ -99,6 +99,7 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
     res += f"# Volume: {volume:.6e}\n"
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
     res += print_line_2d("Total", "Total", volume, volume, mean_x * volume, mean_x * volume, mean_y * volume, mean_y * volume, volume, volume)
+    res += f"# 2D outflow persistency not currently supported until API is stable \n"
     res += "# xlow\txhigh\tylow\tyhigh\tsumw\tsumw2\tsumwx\tsumwx2\tsumwy\tsumwy2\tsumwxy\tnumEntries\n"
 
     # Add histogram bins
