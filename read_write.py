@@ -116,8 +116,8 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
             sumwy = sumw * (ylow + yhigh) * 0.5
             sumwy2 = sumw * (ylow + yhigh) * 0.5 * (ylow + yhigh) * 0.5
             sumwxy = sumw * (xlow + xhigh) * 0.5 * (ylow + yhigh) * 0.5
-            numEntries = int(data[i, j] != 0)
-            res += f"{xlow:.6e}\t{xhigh:.6e}\t{ylow:.6e}\t{yhigh:.6e}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{sumwy:.6e}\t{sumwy2:.6e}\t{sumwxy:.6e}\t{numEntries}\n"
+            numEntries = data[i, j]
+            res += f"{xlow:.6e}\t{xhigh:.6e}\t{ylow:.6e}\t{yhigh:.6e}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{sumwy:.6e}\t{sumwy2:.6e}\t{sumwxy:.6e}\t{numEntries:.6e}\n"
 
     res += "END YODA_HISTO2D_V2\n"
     return res
@@ -157,27 +157,11 @@ h1d = {
     "/some_h1d": Hist(hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
 }
 
-# Convert to YODA string for 1D histogram
 h1d["/some_h1d"].fill(np.linspace(1,10,100))
 yoda_file1D = to_yoda_1d(h1d)
 
-# Read YODA
 yoda_data = read_yoda(yoda_file1D)
 print(yoda_data)
-
-'''
-h1d_flat = {
-    "/h1d_flat": Hist(hist.axis.Regular(9,1,10), name="Histogram 1D")
-}
-
-h1d_flat["/h1d_flat"].fill(np.linspace(1,10,100))
-
-yoda_file1D_flat = to_yoda_1d(h1d_flat)
-print(yoda_file1D_flat)
-
-'''
-
-
 
 # --------------------------------------------------------------------------------
 # Sample input data for 2D
@@ -188,17 +172,12 @@ h2d = {
         name="Histogram 2D")
 }
 
-# Generate pairs of data for both x and y axes
 x_data = np.random.uniform(1, 5, 100)  
 y_data = np.random.uniform(6, 10, 100)  
 
-# Fill the 2D histogram with pairs of data
 h2d["/some_h2d"].fill(x_data, y_data)
-
-# Convert to YODA string for 2D histogram
 yoda_file2D = to_yoda_2d(h2d)
 
-# Read YODA
 yoda_data2D = read_yoda(yoda_file2D)
 print(yoda_data2D)
 
