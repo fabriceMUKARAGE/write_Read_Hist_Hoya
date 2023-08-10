@@ -117,7 +117,7 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
             sumwy = sumw * (ylow + yhigh) * 0.5
             sumwy2 = sumw * (ylow + yhigh) * 0.5 * (ylow + yhigh) * 0.5
             sumwxy = sumw * (xlow + xhigh) * 0.5 * (ylow + yhigh) * 0.5
-            numEntries = data[i, j]
+            numEntries = sumw
             res += f"{xlow:.6e}\t{xhigh:.6e}\t{ylow:.6e}\t{yhigh:.6e}\t{sumw:.6e}\t{sumw2:.6e}\t{sumwx:.6e}\t{sumwx2:.6e}\t{sumwy:.6e}\t{sumwy2:.6e}\t{sumwxy:.6e}\t{numEntries:.6e}\n"
 
     res += "END YODA_HISTO2D_V2\n"
