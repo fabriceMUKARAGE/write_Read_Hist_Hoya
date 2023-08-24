@@ -5,22 +5,24 @@ import hist
 from hist import Hist
 import numpy as np
 
+__all__ =["to_yoda_str", "read_yoda_str"]
+
+def __dir__() -> str:
+    return __all__
 
 
-def to_yoda_1d(input: dict[str, Hist]) -> str:
+def to_yoda_str(input: dict[str, Hist]) -> str:
     res = ""
     for path, h in input.items():
         if isinstance(h, Hist):
-            res += _to_single_yoda_1d(path, h) + "\n\n"
-
-    return res
-
-
-def to_yoda_2d(input: dict[str, Hist]) -> str:
-    res = ""
-    for path, h in input.items():
-        if isinstance(h, Hist):
-            res += _to_single_yoda_2d(path, h) + "\n\n"
+            if h.ndim==1:
+                res += _to_single_yoda_1d(path, h) + "\n\n"
+            elif h.ndim==2:
+                res += _to_single_yoda_2d(path, h) + "\n\n"
+            else:
+                raise TypeError ("Only 1D and 2D histograms are supported")
+        else:
+            raise TypeError ("Only Hist objects are supported")
     return res
 
 
@@ -78,7 +80,8 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
 def _to_single_yoda_2d(path: str, h: Hist) -> str:
     res = "BEGIN YODA_HISTO2D_V2 " + path + "\n"
     res += "Path: " + path + "\n"
-    res += "Title: " + h.name + "\n"
+    if h.name:
+        res += "Title: " + h.name + "\n"
     res += "Type: Histo2D\n"
     res += "some: stuff\n"
 
@@ -123,9 +126,8 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
     res += "END YODA_HISTO2D_V2\n"
     return res
 
-
 # Reading the yoda format
-def read_yoda(input) -> dict[str, tuple[str, str]]:
+def read_yoda_str(input: str) -> dict[str, tuple[str, str]]:
     yoda_dict = {}
     lines = input.split("\n")
     num_lines = len(lines)
@@ -143,45 +145,71 @@ def read_yoda(input) -> dict[str, tuple[str, str]]:
                 body += lines[i] + "\n"
                 i += 1
 
-            body += lines[i] + "\n"  # to include the "END" line
+            body += lines[i]
             yoda_dict[path] = (class_name, body)
-            return body
 
         i += 1
 
     return yoda_dict
 
+# Test functions
+def test_read_yoda_str_1d():
 
-# --------------------------------------------------------------------------------
-# Sample input data for 1D
-h1d = {
-    "/some_h1d": Hist(hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
-}
+    h1d = {
+        "/some_h1d": Hist(hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
+    }
+    
+    h1d["/some_h1d"].fill(np.linspace(1,10,100))
+    yoda_file1D = to_yoda_str(h1d)
+    yoda_data = read_yoda_str(yoda_file1D)
+    
+    expected_results = {}
 
-h1d["/some_h1d"].fill(np.linspace(1,10,100))
-yoda_file1D = to_yoda_1d(h1d)
+    for path, (class_name, body) in yoda_data.items():
+        expected_results[path] = (class_name, body.strip())
 
-yoda_data = read_yoda(yoda_file1D)
-print(yoda_data)
+    for path, (class_name, body) in yoda_data.items():
+        print(f"Path: {path}")
+        print(f"Class Name: {class_name}")
+        print(f"Body:\n{body}")
+        print("---")
 
-# --------------------------------------------------------------------------------
-# Sample input data for 2D
-h2d = {
-    "/some_h2d": Hist(
-        hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0]),
-        hist.axis.Variable([6.0, 7.0, 8.0, 9.0, 10.0]),
-        name="Histogram 2D")
-}
+        # Test the extracted information against the expected results
+        if path in expected_results:
+            expected_class, expected_body = expected_results[path]
+            assert class_name == expected_class
+            assert body == expected_body
 
-x_data = np.random.uniform(1, 5, 100)  
-y_data = np.random.uniform(6, 10, 100)  
+def test_read_yoda_str_2d():
 
-h2d["/some_h2d"].fill(x_data, y_data)
-yoda_file2D = to_yoda_2d(h2d)
+    h2d = {
+        "/some_h2d": Hist(
+            hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0]),
+            hist.axis.Variable([6.0, 7.0, 8.0, 9.0, 10.0]),
+            name="Histogram 2D")
+    }
 
-yoda_data2D = read_yoda(yoda_file2D)
-print(yoda_data2D)
+    x_data = np.random.uniform(1, 5, 100)  
+    y_data = np.random.uniform(6, 10, 100)  
 
+    h2d["/some_h2d"].fill(x_data, y_data)
+    yoda_file2D = to_yoda_str(h2d)
 
+    yoda_data2D = read_yoda_str(yoda_file2D)
 
+    expected_results = {}
 
+    for path, (class_name, body) in yoda_data2D.items():
+        expected_results[path] = (class_name, body.strip())
+
+    for path, (class_name, body) in yoda_data2D.items():
+        print(f"Path: {path}")
+        print(f"Class Name: {class_name}")
+        print(f"Body:\n{body}")
+        print("---")
+
+        # Test the extracted information against the expected results
+        if path in expected_results:
+            expected_class, expected_body = expected_results[path]
+            assert class_name == expected_class
+            assert body == expected_body
