@@ -169,10 +169,6 @@ def test_read_yoda_str_1d():
         expected_results[path] = (class_name, body.strip())
 
     for path, (class_name, body) in yoda_data.items():
-        print(f"Path: {path}")
-        print(f"Class Name: {class_name}")
-        print(f"Body:\n{body}")
-        print("---")
 
         # Test the extracted information against the expected results
         if path in expected_results:
@@ -203,10 +199,6 @@ def test_read_yoda_str_2d():
         expected_results[path] = (class_name, body.strip())
 
     for path, (class_name, body) in yoda_data2D.items():
-        print(f"Path: {path}")
-        print(f"Class Name: {class_name}")
-        print(f"Body:\n{body}")
-        print("---")
 
         # Test the extracted information against the expected results
         if path in expected_results:
