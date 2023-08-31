@@ -1,9 +1,8 @@
 from __future__ import annotations
-
-
-import hist
-from hist import Hist
 import numpy as np
+
+from .. import Hist, overflow, underflow, axis, storage
+
 
 __all__ =["to_yoda_str", "read_yoda_str"]
 
@@ -64,8 +63,8 @@ def _to_single_yoda_1d(path: str, h: Hist) -> str:
 
     res += "# ID\tID\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
     res += print_line_1d("Total", "Total", area, area, mean, mean, area)
-    res += print_line_1d("Underflow", "Underflow", h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow], h[hist.underflow])
-    res += print_line_1d("Overflow", "Overflow", h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow], h[hist.overflow])
+    res += print_line_1d("Underflow", "Underflow", h[underflow], h[underflow], h[underflow], h[underflow], h[underflow])
+    res += print_line_1d("Overflow", "Overflow", h[overflow], h[overflow], h[overflow], h[overflow], h[overflow])
 
     res += "# xlow\txhigh\tsumw\tsumw2\tsumwx\tsumwx2\tnumEntries\n"
 
@@ -126,8 +125,8 @@ def _to_single_yoda_2d(path: str, h: Hist) -> str:
     res += "END YODA_HISTO2D_V2\n"
     return res
 
-# Reading the yoda format
-def read_yoda_str(input: str) -> dict[str, tuple[str, str]]:
+
+def read_yoda_str(input: str) -> dict[str, tuple[str, str, str]]:
     yoda_dict = {}
     lines = input.split("\n")
     num_lines = len(lines)
@@ -138,70 +137,20 @@ def read_yoda_str(input: str) -> dict[str, tuple[str, str]]:
         if line.startswith("BEGIN"):
             path = line.split()[2]
             class_name = line.split()[1][:-3]
-
-            body = line + "\n"  # to include the "BEGIN" line
-            i += 1
+            
+            body = ""
+            header = ""
+            
+            while i < num_lines and lines[i].strip()=="---":
+                header += lines[i] + "\n"
+                i +=1
+                
             while i < num_lines and not lines[i].startswith("END"):
                 body += lines[i] + "\n"
                 i += 1
 
             body += lines[i]
-            yoda_dict[path] = (class_name, body)
-
+            yoda_dict[path] = (class_name, header, body)
+            
         i += 1
-
     return yoda_dict
-
-# Test functions
-def test_read_yoda_str_1d():
-
-    h1d = {
-        "/some_h1d": Hist(hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]), name="Histogram 1D")
-    }
-    
-    h1d["/some_h1d"].fill(np.linspace(1,10,100))
-    yoda_file1D = to_yoda_str(h1d)
-    yoda_data = read_yoda_str(yoda_file1D)
-    
-    expected_results = {}
-
-    for path, (class_name, body) in yoda_data.items():
-        expected_results[path] = (class_name, body.strip())
-
-    for path, (class_name, body) in yoda_data.items():
-
-        # Test the extracted information against the expected results
-        if path in expected_results:
-            expected_class, expected_body = expected_results[path]
-            assert class_name == expected_class
-            assert body == expected_body
-
-def test_read_yoda_str_2d():
-
-    h2d = {
-        "/some_h2d": Hist(
-            hist.axis.Variable([1.0, 2.0, 3.0, 4.0, 5.0]),
-            hist.axis.Variable([6.0, 7.0, 8.0, 9.0, 10.0]),
-            name="Histogram 2D")
-    }
-
-    x_data = np.random.uniform(1, 5, 100)  
-    y_data = np.random.uniform(6, 10, 100)  
-
-    h2d["/some_h2d"].fill(x_data, y_data)
-    yoda_file2D = to_yoda_str(h2d)
-
-    yoda_data2D = read_yoda_str(yoda_file2D)
-
-    expected_results = {}
-
-    for path, (class_name, body) in yoda_data2D.items():
-        expected_results[path] = (class_name, body.strip())
-
-    for path, (class_name, body) in yoda_data2D.items():
-
-        # Test the extracted information against the expected results
-        if path in expected_results:
-            expected_class, expected_body = expected_results[path]
-            assert class_name == expected_class
-            assert body == expected_body
